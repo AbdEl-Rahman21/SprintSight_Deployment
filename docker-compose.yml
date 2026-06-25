@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sprintsight-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sprintsight}
+      POSTGRES_USER: ${DB_USERNAME:-sprintsight}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - sprintsight-db-data:/var/lib/postgresql/data
+      - ./db/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sprintsight} -d ${DB_NAME:-sprintsight}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - sprintsight
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sprintsight-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ACTIVE_PROFILES: ${ACTIVE_PROFILES:-prod}
+
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-sprintsight}
+      DB_USERNAME: ${DB_USERNAME:-sprintsight}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DDL_AUTO: ${DDL_AUTO:-validate}
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-900000}
+      REFRESH_EXPIRATION_DAYS: ${REFRESH_EXPIRATION_DAYS:-7}
+
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    ports:
+      - "8080:8080"
+    networks:
+      - sprintsight
+
+volumes:
+  sprintsight-db-data:
+    name: sprintsight-db-data
+
+networks:
+  sprintsight:
+    name: sprintsight
+    driver: bridge
+
