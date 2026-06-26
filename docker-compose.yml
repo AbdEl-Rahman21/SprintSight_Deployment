@@ -20,6 +20,27 @@ services:
       start_period: 10s
     networks:
       - sprintsight
+      
+  prediction:
+    build:
+      context: ./prediction
+      dockerfile: Dockerfile
+    container_name: sprintsight-prediction
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 2G
+    networks:
+      - sprintsight
 
   backend:
     build:
@@ -29,6 +50,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      prediction:
         condition: service_healthy
     environment:
       ACTIVE_PROFILES: ${ACTIVE_PROFILES:-prod}
@@ -47,6 +70,8 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      
+      PREDICTION_SERVICE_URL: http://prediction:8000
     ports:
       - "8080:8080"
     networks:
