@@ -13,7 +13,7 @@ services:
       - sprintsight-db-data:/var/lib/postgresql/data
       - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sprintsight} -d ${DB_NAME:-sprintsight} && test -f /tmp/restore-complete"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sprintsight} -d ${DB_NAME:-sprintsight}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -72,8 +72,25 @@ services:
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       
       PREDICTION_SERVICE_URL: http://prediction:8000
+    expose:
+      - "8080"
+    networks:
+      - sprintsight
+      
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sprintsight-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${TLS_CERT_PATH:-./certs/cert.pem}:/etc/nginx/certs/cert.pem:ro
+      - ${TLS_KEY_PATH:-./certs/key.pem}:/etc/nginx/certs/key.pem:ro
     networks:
       - sprintsight
 

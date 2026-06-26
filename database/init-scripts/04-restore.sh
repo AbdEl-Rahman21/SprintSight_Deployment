@@ -11,8 +11,6 @@ pg_restore \
   -U "$POSTGRES_USER" \
   -d "$POSTGRES_DB" \
   /docker-entrypoint-initdb.d/03-data.dump
-  
-touch /tmp/restore-complete
 
 echo "Restore completed."
 
